@@ -1,0 +1,821 @@
+
+
+<!DOCTYPE html>
+<html lang="en" data-default-color-scheme=auto>
+
+
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="apple-touch-icon" sizes="76x76" href="/img/fluid.png">
+  <link rel="icon" href="/img/fluid.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="Peng X">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="Memory Leak (内存泄漏)专题指南-01 本文着重分析常见memory leak的现象和原因，以及分享一些解决memory leak的思路和工具  何为内存泄漏 动态存储分配函数动态开辟的空间，在使用完毕后未释放，结果导致一直占据该内存单元  申请过多内存  首先内存只申请不释放未必就是内存泄漏，有可能是你的程序的确需要申请很多内存，这是正常的，然而如果是bug导致申请了很多内存，这就是">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Memory Leak Analyze 01">
+<meta property="og:url" content="http://example.com/2022/10/17/Memory-Leak-Analyze-01/index.html">
+<meta property="og:site_name" content="佚名">
+<meta property="og:description" content="Memory Leak (内存泄漏)专题指南-01 本文着重分析常见memory leak的现象和原因，以及分享一些解决memory leak的思路和工具  何为内存泄漏 动态存储分配函数动态开辟的空间，在使用完毕后未释放，结果导致一直占据该内存单元  申请过多内存  首先内存只申请不释放未必就是内存泄漏，有可能是你的程序的确需要申请很多内存，这是正常的，然而如果是bug导致申请了很多内存，这就是">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="http://example.com/Memory-Leak-Analyze-01/valgrind%20vs%20asan.jpg">
+<meta property="og:image" content="http://example.com/Memory-Leak-Analyze-01/%E6%88%AA%E5%B1%8F2022-10-14%2011.00.20.png">
+<meta property="og:image" content="http://example.com/Memory-Leak-Analyze-01/%E6%88%AA%E5%B1%8F2022-10-14%2010.57.23.png">
+<meta property="article:published_time" content="2022-10-17T03:17:54.000Z">
+<meta property="article:modified_time" content="2022-10-17T03:30:48.522Z">
+<meta property="article:author" content="Peng X">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="http://example.com/Memory-Leak-Analyze-01/valgrind%20vs%20asan.jpg">
+  
+  
+  
+  <title>Memory Leak Analyze 01 - 佚名</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1749284_hj8rtnfg7um.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="/css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="/css/highlight-dark.css" />
+  
+
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"example.com","root":"/","version":"1.9.3","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":["home"]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"left","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":true,"follow_dnt":true,"baidu":null,"google":null,"gtag":null,"tencent":{"sid":null,"cid":null},"woyaola":null,"cnzz":null,"leancloud":{"app_id":"I4dPezN7L4wi3poAtdPO3eRf-gzGzoHsz","app_key":"AuoUJvW75NEs1vUt64zuLq5k","server_url":"https://i4dpezn7.lc-cn-n1-shared.com","path":"window.location.pathname","ignore_local":false}},"search_path":"/local-search.xml"};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="/js/utils.js" ></script>
+  <script  src="/js/color-schema.js" ></script>
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+  
+
+
+
+  
+<meta name="generator" content="Hexo 6.3.0"></head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <strong>Border</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/">
+                <i class="iconfont icon-home-fill"></i>
+                Home
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/archives/">
+                <i class="iconfont icon-archive-fill"></i>
+                Archives
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/categories/">
+                <i class="iconfont icon-category-fill"></i>
+                Categories
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/tags/">
+                <i class="iconfont icon-tags-fill"></i>
+                Tags
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/about/">
+                <i class="iconfont icon-user-fill"></i>
+                About
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              &nbsp;<i class="iconfont icon-search"></i>&nbsp;
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">&nbsp;<i
+                class="iconfont icon-dark" id="color-toggle-icon"></i>&nbsp;</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('/img/default.png') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle">Memory Leak Analyze 01</span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2022-10-17 11:17" pubdate>
+          October 17, 2022 am
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          7.8k words
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          65 mins
+        
+      </span>
+    
+
+    
+    
+      
+        <span id="leancloud-page-views-container" class="post-meta" style="display: none">
+          <i class="iconfont icon-eye" aria-hidden="true"></i>
+          <span id="leancloud-page-views"></span> views
+        </span>
+        
+      
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="padding-left: 2rem; margin-right: -1rem">
+    <div id="toc">
+  <p class="toc-header"><i class="iconfont icon-list"></i>&nbsp;Table of Contents</p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <!-- SEO header -->
+            <h1 style="display: none">Memory Leak Analyze 01</h1>
+            
+              <p class="note note-info">
+                
+                  
+                    Last updated on 7 minutes ago
+                  
+                
+              </p>
+            
+            
+              <div class="markdown-body">
+                
+                <h1 id="Memory-Leak-内存泄漏-专题指南-01"><a href="#Memory-Leak-内存泄漏-专题指南-01" class="headerlink" title="Memory Leak (内存泄漏)专题指南-01"></a>Memory Leak (内存泄漏)专题指南-01</h1><blockquote>
+<p>本文着重分析常见memory leak的现象和原因，以及分享一些解决memory leak的思路和工具</p>
+</blockquote>
+<h2 id="何为内存泄漏"><a href="#何为内存泄漏" class="headerlink" title="何为内存泄漏"></a>何为内存泄漏</h2><blockquote>
+<p>动态存储分配函数动态开辟的空间，在使用完毕后未释放，结果导致一直占据该内存单元</p>
+</blockquote>
+<h3 id="申请过多内存"><a href="#申请过多内存" class="headerlink" title="申请过多内存"></a>申请过多内存</h3><p>  首先内存只申请不释放未必就是内存泄漏，有可能是你的程序的确需要申请很多内存，这是正常的，然而如果是bug导致申请了很多内存，这就是内存泄漏了，或者也有人将其称为<strong>space leak</strong>，意思是申请的内存超过了正常所需；不管是有意无意，总之在这种情况下<strong>你依然保持对这些内存的引用，因此你总可以找到这些内存并删除它们</strong>，就看你删不删。</p>
+<p>  有很多情况会导致这一问题，像重复使用的某个结构体&#x2F;对象，当再次复用时没有清理上一次使用遗留的数据、系统中存在cache，但cache的过期策略设置不得当等等。</p>
+<h3 id="内存无法删除"><a href="#内存无法删除" class="headerlink" title="内存无法删除"></a>内存无法删除</h3><p>另一类比较有趣的内存泄漏是说你申请了一些内存，但最终却没有什么指向它们：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">void memory_leak() &#123;<br>   char* mem = (char*)malloc(1024);<br>  // just return<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>在这段代码中我们申请了1k内存，<strong>然而当memory_leak函数返回后你就再也不知道这段内存到底在哪里了</strong>！对于编程来说就是粗心大意的程序员申请了一些内存后最终“忘掉”了，再也不会有什么东西(变量&#x2F;指针)指向这些内存，因此在<strong>这种情况下你没有办法再找到这些内存并将其删除</strong>。</p>
+<h3 id="内存碎片"><a href="#内存碎片" class="headerlink" title="*内存碎片"></a>*内存碎片</h3><p>  这是一类特殊的内存泄漏，用停车场的例子来说就是两个停车位中间停靠了一辆小型老年代步车，导致尽管这两个停车位剩余的空间足够大但又恰好都没有办法再停靠一辆小汽车。因此看起来我们的程序占据的内存越来越多，尽管实际上程序可能并不需要那么多内存，仅仅是因为内存碎片的原因导致一部分内存无法被再次被利用起来。</p>
+<p>  然而对于现代操作系统尤其具备虚拟内存能力的系统来说，内存碎片问题通常可能并不会和我们想象的那样严重，原因就在于分配的内存只需要在虚拟地址空间上连续而不必在物理内存上也连续。</p>
+<p>  如果你的程序需要重复申请很多对象&#x2F;数据&#x2F;结构体，并在最后一次性全部释放，那么内存池是一个避免内存碎片不错的选择，原理在于尽管从内存池的角度看会有碎片，但当我们以内存池大小为单位从堆区中申请释放内存时，这种碎片将不复存在。</p>
+<h2 id="内存泄漏有什么问题"><a href="#内存泄漏有什么问题" class="headerlink" title="内存泄漏有什么问题"></a>内存泄漏有什么问题</h2><p>  在现代操作系统中除非你的程序运行时间足够长或者申请的内存足够快足够多否则内存泄漏可能并不是什么大问题，你甚至可能都察觉不出来有内存泄漏，因为当进程运行结束后其占据的内存会被操作系统收回，在这种情况下你可能不必过于关心这个问题，但对于长时间运行的服务器端程序、数据库程序、操作系统等，内存泄漏就属于比较严重的问题了，因为这些程序必须时刻在线，任何微小的内存泄漏在时间的加持下都会非常明显。</p>
+<p>  <strong>内存持续泄漏会发生什么？</strong></p>
+<p>  内存的申请速度会对系统性能产生很大的影响，当系统内存不足时，内存分配器找到一块满足要求的空闲内存块将更加困难耗时更多，当程序消耗的内存超过物理内存大小时虚拟内存系统（如果有的话）开始发挥作用，将进程地址空间中不常用的一部分swap出去，此时系统性能将快速下降，表现出来的就是程序员运行变慢、卡顿。</p>
+<p>  当然，根据系统配置，像Linux系统，可能会将消耗内存很多的进程kill掉，这就是Out of Memory killer，简称oom killer。</p>
+<h2 id="如何发现内存泄漏"><a href="#如何发现内存泄漏" class="headerlink" title="如何发现内存泄漏"></a>如何发现内存泄漏</h2><blockquote>
+<p>不像程序崩溃Core dump，这类问题通过debug通常能获取一些线索，但内存泄漏问题就没那么直接了，尤其对于C&#x2F;C++程序来说，这时我们将不得不借助必要的工具。</p>
+</blockquote>
+<p>下图是常用的一些内存检测工具：</p>
+<p><img src="/./Memory-Leak-Analyze-01/valgrind%20vs%20asan.jpg" srcset="/img/loading.gif" lazyload alt="valgrind vs asan"></p>
+<p>参数说明：</p>
+<ul>
+<li><em><strong>DBI</strong></em>: dynamic binary instrumentation（动态二进制插桩）</li>
+<li><em><strong>CTI</strong></em>: compile-time instrumentation （编译时插桩）</li>
+<li><em><strong>UMR</strong></em>: uninitialized memory reads （读取未初始化的内存）</li>
+<li><em><strong>UAF</strong></em>: use-after-free (aka dangling pointer) （使用释放后的内存）</li>
+<li><em><strong>UAR</strong></em>: use-after-return （使用返回后的值）</li>
+<li><em><strong>OOB</strong></em>: out-of-bounds （溢出）</li>
+<li><em><strong>x86</strong></em>: includes 32- and 64-bit.</li>
+</ul>
+<h3 id="Valgrind-不推荐，慢，但没有侵入性，检测效果一般"><a href="#Valgrind-不推荐，慢，但没有侵入性，检测效果一般" class="headerlink" title="Valgrind(不推荐，慢，但没有侵入性，检测效果一般)"></a>Valgrind(不推荐，慢，但没有侵入性，检测效果一般)</h3><blockquote>
+<p><a target="_blank" rel="noopener" href="https://valgrind.org/docs/manual/manual.html">https://valgrind.org/docs/manual/manual.html</a></p>
+</blockquote>
+<p>包含下列工具：</p>
+<ol>
+<li><p>memcheck：检查程序中的内存问题，如泄漏、越界、非法指针等。</p>
+</li>
+<li><p>callgrind：检测程序代码的运行时间和调用过程，以及分析程序性能。</p>
+</li>
+<li><p>cachegrind：分析CPU的cache命中率、丢失率，用于进行代码优化。</p>
+</li>
+<li><p>helgrind：用于检查多线程程序的竞态条件。</p>
+</li>
+<li><p>massif：堆栈分析器，指示程序中使用了多少堆内存等信息。</p>
+</li>
+<li><p>lackey：是一个示例程序，以其为模版可以创建你自己的工具。在程序结束后，它打印出一些基本的关于程序执行统计数据</p>
+</li>
+<li><p>nulgrind：</p>
+</li>
+</ol>
+<p>  这几个工具的使用是通过命令：<code>valgrand --tool=name</code> 程序名来分别调用的，当不指定 tool 参数时默认是 <code>-–tool=memcheck</code></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs bash">valgrind --tool=memcheck --leak-check=full ./mem_leak_test<br></code></pre></td></tr></table></figure>
+
+<p><em><strong>该工具可以检测下列与内存相关的问题 :</strong></em></p>
+<ul>
+<li>未释放内存的使用</li>
+<li>对释放后内存的读&#x2F;写</li>
+<li>对已分配内存块尾部的读&#x2F;写</li>
+<li>内存泄露</li>
+<li>不匹配的使用malloc&#x2F;new&#x2F;new[] 和 free&#x2F;delete&#x2F;delete[]</li>
+<li>重复释放内存</li>
+</ul>
+<p><strong>结果中包含以下信息:</strong></p>
+<ul>
+<li><p>HEAP SUMMARY，它表示程序在堆上分配内存的情况，2 allocs表示分配了2次内存，0 frees表示释放了0次，72,714 bytes allocated表示分配了72,714个字节</p>
+</li>
+<li><p>如果有泄漏，valgrind会报告是哪个位置发生了泄漏（main中cpp第8行）</p>
+</li>
+<li><p>LEAK SUMMARY，表示不同的内存丢失类型</p>
+</li>
+<li><ul>
+<li>definitely loss: 确认丢失，<strong>需修复</strong>因为在程序运行完的时候，没有指针指向它，指向它的指针在程序中丢失了；</li>
+<li>indirectly lost: 间接丢失，<strong>无须处理</strong>，当使用了含有指针成员的类或结构时可能会报这个错误。这类错误无需直接修复，他们总是与”definitely lost”一起出现，只要修复”definitely lost”即可；</li>
+<li>possibly lost: 可能丢失，<strong>需修复</strong>，发现了一个指向某块内存中部的指针，而不是指向内存块头部。这种指针一般是原先指向内存块头部，后来移动到了内存块的中部，还有可能该指针和该内存根本就没有关系，检测工具只是怀疑有内存泄漏。</li>
+<li>still reachable: 可以访问，需修复，未丢失但也未释放。如果程序是正常结束的，那么它可能不会造成程序崩溃。表示泄漏的内存在程序运行完的时候，仍旧有指针指向它，因而，这种内存在程序运行结束之前可以释放。一般情况下valgrind不会报这种泄漏，除非使用了参数 –show-reachable&#x3D;yes。</li>
+<li>suppressed：已被解决，<strong>无须处理</strong>，出现了内存泄露但系统自动处理了；可以无视这类错误。</li>
+</ul>
+</li>
+</ul>
+<h3 id="AddressSanitizer-推荐，快，需要链接库，检测效果较好"><a href="#AddressSanitizer-推荐，快，需要链接库，检测效果较好" class="headerlink" title="AddressSanitizer(推荐，快，需要链接库，检测效果较好)"></a>AddressSanitizer(推荐，快，需要链接库，检测效果较好)</h3><blockquote>
+<p>AddressSanitizer是google开发一个应用内存检查工具，性能据说比valgrind要好不少，可以配合clang或者GCC编译器使用，GCC需要4.8及以上版本。</p>
+<p><a target="_blank" rel="noopener" href="https://github.com/google/sanitizers/wiki/AddressSanitizer">https://github.com/google/sanitizers/wiki/AddressSanitizer</a></p>
+</blockquote>
+<p>AddressSanitizer 是一个快速的内存错误检测器。它由一个编译器检测模块和一个运行时库组成。该工具可以检测以下类型的错误：</p>
+<ul>
+<li>Out-of-bounds accesses to heap, stack and globals</li>
+<li>Use-after-free</li>
+<li>Use-after-return (to some extent)</li>
+<li>Double-free, invalid free</li>
+</ul>
+<p>使用方法很简单，只需使用<code>-fsanitize=address</code>标志编译和链接您的程序。<br>要获得合理的性能，请添加<code>-O1</code>或更高。<br>要在错误消息中获得更好的堆栈跟踪，请添加 <code>-fno-omit-frame-pointer</code>。<br>要获得完美的堆栈跟踪，您可能需要禁用内联（只需使用<code>-O1</code>）和尾调用消除（-fno-optimize-sibling-calls）。</p>
+<p>然后运行可执行文件即可检测。</p>
+<h2 id="如何避免内存泄漏"><a href="#如何避免内存泄漏" class="headerlink" title="如何避免内存泄漏"></a>如何避免内存泄漏</h2><blockquote>
+<p>虽然上节提到的工具可以帮助我们解决大多问题，但仍然存在一些“精心编写”的代码，由于种种原因，产生了意想不到的负面影响</p>
+</blockquote>
+<p>以一个真实的反面教材为例，在紧张的开发完成后，经过了valgrind内存测试、性能测试和测试环境测试，并最终上线了生产环境，但却在一到两天后，日志显示系统异常。</p>
+<p>现象是现场数十个小时后整个处理逻辑（传感器接入到事件算法完成输出）耗时过久，且<code>top</code>命令显示的内存一直在缓慢的增长。</p>
+<p>对此我们分析了种种原因，最主要的猜测是生产环境所需的处理数据较大，而我们实际的<strong>运行环境资源非常紧张</strong>，无法积累太长时间的数据。</p>
+<p>为了验证各种可能，我们开发并嵌入了更为详细的日志，以确定主要影响的代码段，最终定位到问题以下代码耗时过久。</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><code class="hljs c++">map&lt;string, vector&lt;<span class="hljs-keyword">struct</span> wgs_car&gt;&gt; evts; <br>...<br><span class="hljs-keyword">for</span> (<span class="hljs-keyword">auto</span> type : evts) &#123;<br>  <span class="hljs-keyword">if</span> (type.second.<span class="hljs-built_in">size</span>())<br>  &#123;<br>    <span class="hljs-keyword">for</span> (<span class="hljs-keyword">auto</span> evt = type.second.<span class="hljs-built_in">begin</span>(); evt != type.second.<span class="hljs-built_in">end</span>();)<br>    &#123;<br>      <span class="hljs-keyword">if</span> ((*evt).timestamp + <span class="hljs-number">15</span> &lt; <span class="hljs-built_in">time</span>(<span class="hljs-literal">NULL</span>)) &#123;<br>        evt = type.second.<span class="hljs-built_in">erase</span>(evt);<br>      &#125; <span class="hljs-keyword">else</span><br>        evt++;<br>    &#125;<br>  &#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>在设计中，此段代码应该只需处理1分钟内的数据量，剩下的将会主动清除，然而因为某一行(line 3，&amp;type)的问题，导致没有清除成功，导致map越来越大，以至于影响整个系统。</p>
+<h3 id="一些思路-x2F-经验"><a href="#一些思路-x2F-经验" class="headerlink" title="一些思路&#x2F;经验"></a>一些思路&#x2F;经验</h3><blockquote>
+<p>人生三大错觉之一，我能管理好内存</p>
+</blockquote>
+<ul>
+<li><p>尽量避免在堆上分配内存</p>
+<blockquote>
+<p>既然只有堆上会发生内存泄露，那第一原则肯定是避免在堆上面进行内存分配，尽可能的使用栈上的内存，由编译器进行分配和回收，这样当然就不会有内存泄露了，但需谨慎注意避免<strong>爆栈</strong></p>
+</blockquote>
+</li>
+<li><p>善用 <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Resource_acquisition_is_initialization">RAII(Resource Acquisition Is Initialization)</a></p>
+<blockquote>
+<p><strong>RAII 可以帮助我们将管理堆上的内存，简化为管理栈上的内存，从而达到利用编译器自动解决内存回收问题的效果</strong>。此外，RAII 可以简化的还不仅仅是内存管理，还可以简化对资源的管理，例如 fd，锁，引用计数等等。</p>
+<p>当我们需要在堆上分配内存时，我们可以同时在栈上面分配一个对象，让栈上面的对象对堆上面的对象进行封装，用时通过在栈对象的析构函数中释放堆内存的方式，将栈对象的生命周期和堆内存进行绑定。</p>
+</blockquote>
+</li>
+<li><p>便于 Debug</p>
+</li>
+</ul>
+<h2 id="内存泄漏实战-Apollo-Bazel"><a href="#内存泄漏实战-Apollo-Bazel" class="headerlink" title="内存泄漏实战(Apollo+Bazel)"></a>内存泄漏实战(Apollo+Bazel)</h2><p> 由于常见的valgrand以及AddressSanitizer等工具并未原生支持或嵌入bazel编译系统，所以需要debug前对整套系统进行一些“魔改”来使用，对于其他如Cmake，使用更为容易且相关资料丰富，这里不做补充。</p>
+<h3 id="开启Debug模式-g"><a href="#开启Debug模式-g" class="headerlink" title="开启Debug模式(-g)"></a>开启Debug模式(-g)</h3><blockquote>
+<p>Bazel 提供了<code>--compilation_mode (fastbuild|opt|dbg) (-c)</code>选项，即<code>gcc -g</code>选项，参考:</p>
+<p>Path2apollo&#x2F;docs&#x2F;specs&#x2F;apollo_build_and_test_explained.md</p>
+<p><a target="_blank" rel="noopener" href="https://docs.bazel.build/versions/main/user-manual.html#flag--compilation_mode">https://docs.bazel.build/versions/main/user-manual.html#flag--compilation_mode</a></p>
+</blockquote>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs bash">./apollo.sh build_dbg omnisense<br><span class="hljs-comment"># 等价于 bazel build -c dbg modules/omnisense/...</span><br></code></pre></td></tr></table></figure>
+
+<p>经过以上 <strong>-g</strong> 编译后的程序，gdb就可以看到源码并进行一系列操作:</p>
+<ul>
+<li><p>gdb可以读取到<strong>symbols</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><code class="hljs bash">root@in-dev-docker:/apollo<span class="hljs-comment"># gdb bazel-bin/modules/omnisense/drivers/lidar/innovusion/driver/adapter_component_test</span><br>GNU gdb (Ubuntu 8.1.1-0ubuntu1) 8.1.1<br>Copyright (C) 2018 Free Software Foundation, Inc.<br>License GPLv3+: GNU GPL version 3 or later &lt;http://gnu.org/licenses/gpl.html&gt;<br>This is free software: you are free to change and redistribute it.<br>There is NO WARRANTY, to the extent permitted by law.  Type <span class="hljs-string">&quot;show copying&quot;</span><br>and <span class="hljs-string">&quot;show warranty&quot;</span> <span class="hljs-keyword">for</span> details.<br>This GDB was configured as <span class="hljs-string">&quot;aarch64-linux-gnu&quot;</span>.<br>Type <span class="hljs-string">&quot;show configuration&quot;</span> <span class="hljs-keyword">for</span> configuration details.<br>For bug reporting instructions, please see:<br>&lt;http://www.gnu.org/software/gdb/bugs/&gt;.<br>Find the GDB manual and other documentation resources online at:<br>&lt;http://www.gnu.org/software/gdb/documentation/&gt;.<br>For <span class="hljs-built_in">help</span>, <span class="hljs-built_in">type</span> <span class="hljs-string">&quot;help&quot;</span>.<br>Type <span class="hljs-string">&quot;apropos word&quot;</span> to search <span class="hljs-keyword">for</span> commands related to <span class="hljs-string">&quot;word&quot;</span>...<br>Reading symbols from bazel-bin/modules/omnisense/drivers/lidar/innovusion/driver/adapter_component_test...done.  <span class="hljs-comment">### 这里可以读取到symbols，即可以gdb</span><br>(gdb) l<br>1       <span class="hljs-comment">#include &quot;adapter_component.h&quot;</span><br>2<br>3       <span class="hljs-comment">#include &lt;time.h&gt;</span><br>4<br>5       <span class="hljs-comment">#include &lt;chrono&gt;</span><br>6       <span class="hljs-comment">#include &lt;iostream&gt;</span><br>7<br>8       <span class="hljs-comment">#include &quot;cyber/cyber.h&quot;</span><br>(gdb)<br></code></pre></td></tr></table></figure>
+</li>
+<li><p>readelf查看到可执行文件是否带有调试功能</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs bash">root@in-dev-docker:/apollo<span class="hljs-comment"># readelf -S bazel-bin/modules/omnisense/drivers/lidar/innovusion/driver/adapter_component_test | grep debug</span><br>  [30] .debug_info       PROGBITS         0000000000000000  00150451<br>  [31] .debug_abbrev     PROGBITS         0000000000000000  0023f27f<br>  [32] .debug_aranges    PROGBITS         0000000000000000  002416ea<br>  [33] .debug_ranges     PROGBITS         0000000000000000  0025140a<br>  [34] .debug_line       PROGBITS         0000000000000000  0026271a<br>  [35] .debug_str        PROGBITS         0000000000000000  00281445<br></code></pre></td></tr></table></figure></li>
+</ul>
+<h4 id="链接AddressSanitizer"><a href="#链接AddressSanitizer" class="headerlink" title="链接AddressSanitizer"></a>链接AddressSanitizer</h4><ul>
+<li><p>若使用<strong>apollo.sh</strong>进行编译，需定制<code>tools/bazel.rc</code>文件</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs bash"><span class="hljs-comment"># path2apollo/tools/bazel.rc</span><br><span class="hljs-comment"># line 49</span><br>-build:dbg -c dbg<br>+build:dbg -c dbg --linkopt=-fsanitize=address<br><span class="hljs-comment"># 或 build:dbg -c dbg --copt=-O1 --linkopt=-fsanitize=address</span><br></code></pre></td></tr></table></figure>
+
+<p>随后使用如下命令编译</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs bash">./apollo.sh build_dbg path2module<br><span class="hljs-comment">#例: ./apollo.sh build_dbg omnisense/drivers</span><br></code></pre></td></tr></table></figure>
+</li>
+<li><p>若使用<strong>bazel</strong>直接编译，则使用如下命令</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs bash">bazel build -c dbg --linkopt=-fsanitize=address path2module/...<br><span class="hljs-comment"># 例: bazel build -c dbg --linkopt=-fsanitize=address modules/omnisense/drivers/...</span><br><span class="hljs-comment"># 可添加--copt=-O1加速</span><br></code></pre></td></tr></table></figure></li>
+</ul>
+<h3 id="执行UnitTest并分析内存泄漏（二进制模式）"><a href="#执行UnitTest并分析内存泄漏（二进制模式）" class="headerlink" title="执行UnitTest并分析内存泄漏（二进制模式）"></a>执行UnitTest并分析内存泄漏（二进制模式）</h3><blockquote>
+<p>下面将在<strong>UnitTest</strong>测试中人为制造一个简单的内存泄漏，并希望通过工具准确检测到问题点</p>
+</blockquote>
+<p><img src="/./Memory-Leak-Analyze-01/%E6%88%AA%E5%B1%8F2022-10-14%2011.00.20.png" srcset="/img/loading.gif" lazyload alt="截屏2022-10-14 11.00.20"></p>
+<p>若在上个章节使用并链接了AddressSanitizer，则只需直接运行可执行文件，将会自动在终端输出可能存在memory问题的地方，经过运行后，得到输出如下，其中可以成功定位到问题点:</p>
+<p><img src="/./Memory-Leak-Analyze-01/%E6%88%AA%E5%B1%8F2022-10-14%2010.57.23.png" srcset="/img/loading.gif" lazyload alt="截屏2022-10-14 10.57.23"></p>
+<h2 id="执行Mainboard并分析内存泄漏（动态库模式）"><a href="#执行Mainboard并分析内存泄漏（动态库模式）" class="headerlink" title="执行Mainboard并分析内存泄漏（动态库模式）"></a>执行Mainboard并分析内存泄漏（动态库模式）</h2><blockquote>
+<p>由于Apollo架构使用dlopen&#x2F;dlclose加载卸载动态库，所以cyber系列也需要重新加入asan链接</p>
+</blockquote>
+<p>经测试，CyberRT框架与AddressSanitizer有以下限制，建议优先在unittest中做好完整测试：</p>
+<ol>
+<li>各模块中<code>Write()</code>系列函数会导致AddressSanitizer异常，需屏蔽相关代码</li>
+<li>AddressSanitizer依赖于完整退出(Ctrl+C)，所以需屏蔽各模块添加的<code>kill</code>族函数</li>
+</ol>
+<p>确认按上述限制修复后，执行如下命令：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs bash">./apollo.sh build_dbg cyber omnisense/drivers<br>mainboard -d modules/omnisense/drivers/lidar/innovusion/dag/01_single.dag<br></code></pre></td></tr></table></figure>
+
+<p>正常可以定位到上节的内存泄漏点。</p>
+<h2 id="注意事项"><a href="#注意事项" class="headerlink" title="注意事项"></a>注意事项</h2><ul>
+<li>若使用<strong>cuda</strong>的时候需要用asan排查内存问题，cuda相关api无法正常使用，会出现<strong>out of memory</strong>的错误，需要添加<code>ASAN_OPTIONS=protect_shadow_gap=0</code>环境变量</li>
+</ul>
+
+                
+              </div>
+            
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+  
+</div>
+
+
+              
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="/2022/10/12/Memory%20Leak%20(%E5%86%85%E5%AD%98%E6%B3%84%E6%BC%8F)%E4%B8%93%E9%A2%98%E6%8C%87%E5%8D%97-01/" title="">
+                        <span class="hidden-mobile"></span>
+                        <span class="visible-mobile">Next</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+  <article id="comments" lazyload>
+    
+  <div id="valine"></div>
+  <script type="text/javascript">
+    Fluid.utils.loadComments('#valine', function() {
+      Fluid.utils.createScript('https://lib.baomitu.com/valine/1.5.1/Valine.min.js', function() {
+        var options = Object.assign(
+          {"appId":"I4dPezN7L4wi3poAtdPO3eRf-gzGzoHsz","appKey":"AuoUJvW75NEs1vUt64zuLq5k","path":"window.location.pathname","placeholder":"say hello?","avatar":"retro","meta":["nick","mail"],"requiredFields":[],"pageSize":10,"lang":"en","highlight":true,"recordIP":true,"serverURLs":"","emojiCDN":"//i0.hdslb.com/bfs/emote/","emojiMaps":{"tv_doge":"6ea59c827c414b4a2955fe79e0f6fd3dcd515e24.png","tv_亲亲":"a8111ad55953ef5e3be3327ef94eb4a39d535d06.png","tv_偷笑":"bb690d4107620f1c15cff29509db529a73aee261.png","tv_再见":"180129b8ea851044ce71caf55cc8ce44bd4a4fc8.png","tv_冷漠":"b9cbc755c2b3ee43be07ca13de84e5b699a3f101.png","tv_发怒":"34ba3cd204d5b05fec70ce08fa9fa0dd612409ff.png","tv_发财":"34db290afd2963723c6eb3c4560667db7253a21a.png","tv_可爱":"9e55fd9b500ac4b96613539f1ce2f9499e314ed9.png","tv_吐血":"09dd16a7aa59b77baa1155d47484409624470c77.png","tv_呆":"fe1179ebaa191569b0d31cecafe7a2cd1c951c9d.png","tv_呕吐":"9f996894a39e282ccf5e66856af49483f81870f3.png","tv_困":"241ee304e44c0af029adceb294399391e4737ef2.png","tv_坏笑":"1f0b87f731a671079842116e0991c91c2c88645a.png","tv_大佬":"093c1e2c490161aca397afc45573c877cdead616.png","tv_大哭":"23269aeb35f99daee28dda129676f6e9ea87934f.png","tv_委屈":"d04dba7b5465779e9755d2ab6f0a897b9b33bb77.png","tv_害羞":"a37683fb5642fa3ddfc7f4e5525fd13e42a2bdb1.png","tv_尴尬":"7cfa62dafc59798a3d3fb262d421eeeff166cfa4.png","tv_微笑":"70dc5c7b56f93eb61bddba11e28fb1d18fddcd4c.png","tv_思考":"90cf159733e558137ed20aa04d09964436f618a1.png","tv_惊吓":"0d15c7e2ee58e935adc6a7193ee042388adc22af.png"},"enableQQ":true},
+          {
+            el: "#valine",
+            path: window.location.pathname
+          }
+        )
+        new Valine(options);
+        Fluid.utils.waitElementVisible('#valine .vcontent', () => {
+          var imgSelector = '#valine .vcontent img:not(.vemoji)';
+          Fluid.plugins.imageCaption(imgSelector);
+          Fluid.plugins.fancyBox(imgSelector);
+        })
+      });
+    });
+  </script>
+  <noscript>Please enable JavaScript to view the comments</noscript>
+
+
+  </article>
+
+
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  <script>
+  Fluid.utils.createScript('https://lib.baomitu.com/mermaid/8.14.0/mermaid.min.js', function() {
+    mermaid.initialize({"theme":"default"});
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('mermaid' in window) {
+        mermaid.init();
+      }
+    });
+  });
+</script>
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">Search</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">Keyword</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+  
+    <div class="statistics">
+  
+  
+
+  
+    
+      <span id="leancloud-site-pv-container" style="display: none">
+        总访问量 
+        <span id="leancloud-site-pv"></span>
+         次
+      </span>
+    
+    
+      <span id="leancloud-site-uv-container" style="display: none">
+        总访客数 
+        <span id="leancloud-site-uv"></span>
+         人
+      </span>
+    
+    
+
+  
+</div>
+
+  
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.0/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="/js/events.js" ></script>
+<script  src="/js/plugins.js" ></script>
+
+
+
+
+
+  
+    <script  src="/js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.18.2/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    window.tocbot.init(Object.assign({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      scrollSmooth    : true,
+      includeTitleTags: true,
+      headingsOffset  : -boardTop,
+    }, CONFIG.toc));
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('tocbot' in window) {
+        tocbot.refresh();
+        var toc = jQuery('#toc');
+        if (toc.length === 0 || !tocbot) {
+          return;
+        }
+        if (toc.find('.toc-list-item').length > 0) {
+          toc.css('visibility', 'visible');
+        }
+      }
+    });
+  });
+</script>
+
+
+  <script src=https://lib.baomitu.com/clipboard.js/2.0.11/clipboard.min.js></script>
+
+  <script>Fluid.plugins.codeWidget();</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/4.3.1/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('anchors' in window) {
+        anchors.removeAll();
+        var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+        var res = [];
+        for (var item of el) {
+          res.push('.markdown-body > ' + item.trim());
+        }
+        if (CONFIG.anchorjs.placement === 'left') {
+          anchors.options.class = 'anchorjs-link-left';
+        }
+        anchors.add(res.join(', '));
+      }
+    });
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script>Fluid.plugins.imageCaption();</script>
+
+  <script defer src="/js/leancloud.js" ></script>
+
+  <script  src="/js/local-search.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="/js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">Blog works best with JavaScript enabled</div>
+  </noscript>
+</body>
+</html>
