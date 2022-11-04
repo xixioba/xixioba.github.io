@@ -27,8 +27,9 @@
 <meta property="og:image" content="http://example.com/2022/10/17/Memory-Leak-Analyze-01/%E6%88%AA%E5%B1%8F2022-10-14%2011.00.20.png">
 <meta property="og:image" content="http://example.com/2022/10/17/Memory-Leak-Analyze-01/%E6%88%AA%E5%B1%8F2022-10-14%2010.57.23.png">
 <meta property="article:published_time" content="2022-10-17T03:17:54.000Z">
-<meta property="article:modified_time" content="2022-10-17T05:57:13.792Z">
+<meta property="article:modified_time" content="2022-11-02T08:33:00.018Z">
 <meta property="article:author" content="Peng X">
+<meta property="article:tag" content="C&#x2F;C++">
 <meta property="article:tag" content="Debug">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="http://example.com/2022/10/17/Memory-Leak-Analyze-01/valgrind%20vs%20asan.jpg">
@@ -240,7 +241,7 @@
       <span class="post-meta mr-2">
         <i class="iconfont icon-chart"></i>
         
-          7.8k words
+          8.5k words
         
       </span>
     
@@ -251,7 +252,7 @@
         
         
         
-          66 mins
+          71 mins
         
       </span>
     
@@ -312,7 +313,7 @@
               <p class="note note-info">
                 
                   
-                    Last updated on 10 minutes ago
+                    Last updated on 2 days ago
                   
                 
               </p>
@@ -468,7 +469,26 @@
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs bash">./apollo.sh build_dbg path2module<br><span class="hljs-comment">#例: ./apollo.sh build_dbg omnisense/drivers</span><br></code></pre></td></tr></table></figure>
 </li>
 <li><p>若使用<strong>bazel</strong>直接编译，则使用如下命令</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs bash">bazel build -c dbg --linkopt=-fsanitize=address path2module/...<br><span class="hljs-comment"># 例: bazel build -c dbg --linkopt=-fsanitize=address modules/omnisense/drivers/...</span><br><span class="hljs-comment"># 可添加--copt=-O1加速</span><br></code></pre></td></tr></table></figure></li>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs bash">bazel build -c dbg --linkopt=-fsanitize=address path2module/...<br><span class="hljs-comment"># 例: bazel build -c dbg --linkopt=-fsanitize=address modules/omnisense/drivers/...</span><br><span class="hljs-comment"># 可添加--copt=-O1加速</span><br></code></pre></td></tr></table></figure>
+</li>
+<li><p>CMake 编译，添加以下标志，然后编译命令加入<code>-DENABLE_ASAN=ON</code></p>
+<figure class="highlight cmake"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs cmake"><span class="hljs-keyword">if</span>(ENABLE_ASAN)<br>	<span class="hljs-keyword">set</span>(CMAKE_CXX_FLAGS <span class="hljs-string">&quot;$&#123;CMAKE_CXX_FLAGS&#125; -fsanitize=[sanitizer_name] [additional_options] [-g] [-OX]&quot;</span>)<br><span class="hljs-keyword">endif</span>()<br></code></pre></td></tr></table></figure>
+
+<blockquote>
+<p>Use <code>CMAKE_C_FLAGS</code> instead of <code>CMAKE_CXX_FLAGS</code> for C projects.</p>
+</blockquote>
+<p>设置 <code>[sanitizer_name]</code> 为以下功能，默认应使用<code>address</code>:</p>
+<ul>
+<li><code>address</code> 开启 AddressSanitizer</li>
+<li><code>leak</code> 开启 LeakSanitizer</li>
+<li><code>thread</code> 开启 ThreadSanitizer</li>
+<li><code>undefined</code> 开启 UndefinedBehaviorSanitizer</li>
+<li><code>memory</code> 开启 MemorySanitizeraddress</li>
+</ul>
+<p><code>[Additional_flags]</code> are other compilation flags, such as <code>-fno-omit-frame-pointer</code>, <code>fsanitize-recover/fno-sanitize-recover</code>, <code>-fsanitize-blacklist</code>, etc.</p>
+<p>Use <code>[-g]</code> to have file names and line numbers included in warning messages.</p>
+<p>Add optimization level <code>[-OX]</code> to get reasonable performance (see recommendations in the particular Sanitizer documentation).</p>
+</li>
 </ul>
 <h3 id="执行UnitTest并分析内存泄漏（二进制模式）"><a href="#执行UnitTest并分析内存泄漏（二进制模式）" class="headerlink" title="执行UnitTest并分析内存泄漏（二进制模式）"></a>执行UnitTest并分析内存泄漏（二进制模式）</h3><blockquote>
 <p>下面将在<strong>UnitTest</strong>测试中人为制造一个简单的内存泄漏，并希望通过工具准确检测到问题点</p>
@@ -524,6 +544,8 @@
     <div class="post-meta">
       <i class="iconfont icon-tags"></i>
       
+        <a href="../../../../tags/C-C/">#C/C++</a>
+      
         <a href="../../../../tags/Debug/">#Debug</a>
       
     </div>
@@ -537,6 +559,12 @@
                 <div class="post-prevnext my-3">
                   <article class="post-prev col-6">
                     
+                    
+                      <a href="../../../11/02/CPP-Debug-Analyze-01/" title="CPP Debug Analyze 01">
+                        <i class="iconfont icon-arrowleft"></i>
+                        <span class="hidden-mobile">CPP Debug Analyze 01</span>
+                        <span class="visible-mobile">Previous</span>
+                      </a>
                     
                   </article>
                   <article class="post-next col-6">
